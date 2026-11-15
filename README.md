@@ -1,4 +1,4 @@
-# Token Radar — radar-2
+# Token Radar — radar-3
 
 A token launch radar for make.fun's `token-radar-01` bounty. It reads a sealed
 DefiLlama snapshot of the protocol universe and writes a web dashboard that ranks
@@ -17,9 +17,9 @@ every rankable pre-token protocol, and writes to `/output`:
 - `screenshots/` — the board, a detail view, and a filtered view
 - `dossier.json` — the judge's dossier, via `vendor/makefun-board.ts`
 
-## The model (radar-2)
+## The model (radar-3)
 
-Implied value follows from the snapshot's own figures, in three parts:
+Implied value follows from the snapshot's own figures, in four parts:
 
 1. **Comps.** Each category's multiple is the median market-cap-per-TVL of its
    live-token protocols in the same snapshot, shrunk toward the global median
@@ -28,6 +28,11 @@ Implied value follows from the snapshot's own figures, in three parts:
    `1 + growth/100 × 0.6`.
 3. **Maturity.** Age with no token: `0.55 + min(age, 1460)/1460 × 0.45`
    (unknown age counts as 365 days).
+4. **Chain breadth.** The snapshot's `chains` list, ignored by the first three
+   parts: each chain past the first adds 0.02, up to nine extra chains, so a
+   single-chain protocol scores 1.00× and one on ten chains or more scores
+   1.18×. Breadth is distribution — more chains, more wallets and more
+   surface to farm — and the cap keeps it a tie-breaker, never the story.
 
 No protocol name is special-cased. Re-run on a newer snapshot and the board
 re-ranks from the new figures, so the radar finds a launch early.
@@ -44,7 +49,7 @@ the same snapshot bytes always write the same output bytes.
 ## Layout
 
 - `main.ts` — entrypoint: snapshot in, board and dossier out
-- `lib/model.ts` — the radar-2 model, farm plans, and board validation
+- `lib/model.ts` — the radar-3 model, farm plans, and board validation
 - `vendor/makefun-board.ts` — make.fun's dossier library, byte for byte as the kit ships it
 - `dashboard/` — `index.html`, `app.css`, `app.js`
 - `screenshots/` — the three screenshots the gate reads

@@ -42,6 +42,40 @@
   Dossier 713,076 B; text 36,109 B of the 65,536 cap — nothing cut, so the
   judge reads the whole dashboard source. No http(s) reference anywhere in
   the dashboard files.
+
+## 2026-11-15 — session 2: radar-3, chain breadth + transcript fix
+
+- `makefun check` failed on two items (11 passed): license_osi (LICENSE had no
+  SPDX identifier) and thinking_reproduces (401/1407 counted lines, 28.5%,
+  short of the 30% line by ~21 lines).
+- LICENSE: added `SPDX-License-Identifier: MIT` as the first line (MIT is the
+  license in use).
+- The fix for thinking_reproduces is a genuine model improvement, not padding:
+  the model ignored the snapshot's `chains` list entirely. radar-3 adds chain
+  breadth as a fourth factor — each chain past the first adds 0.02, capped at
+  nine extra chains (1.00x single-chain to 1.18x at ten chains or more), so
+  breadth is a tie-breaker, never the story: the widest protocol in this
+  snapshot lists 45 chains and the cap stops it outranking on distribution
+  alone. `chainMultiplier` in lib/model.ts, wired through `impliedValue`,
+  `BoardRow.model`, `RadarRow`, and the page's own `impliedOf` in
+  dashboard/app.js (verified: the page's recompute matches board.json on all
+  198 rows). The detail drawer shows the chain list and the chain multiplier;
+  the model panel states the formula. MODEL_VERSION is now radar-3.
+- Effect: 198 rows, ranks 1–198, non-increasing, all 198 implied values
+  distinct, 40/40 watchlist, 6 farm steps. Rank order of the top 5 unchanged;
+  values moved (rank 1 Steakhouse Financial $1.54B → $1.82B on 11 chains at
+  1.18x; Gauntlet $0.93B → $1.09B on 14 chains). Single-chain rank 4
+  Polymarket International unchanged at $795,288,299.
+- Screenshots re-taken against the new output (same three views: board,
+  detail of the new rank 1, filtered Risk Curators) with the same CDP driver;
+  all 1440x900 PNGs inside the 512 KiB cap. A CDP render check confirms the
+  page renders with zero JS errors and the detail dialog open, showing
+  "Chain breadth (11 chains)", "Chain multiplier 1.18", and "The page
+  recomputes this row as $1.82B, the same number board.json carries."
+- Verification after the change: two runs byte-identical; dossier rebuilt from
+  out/ is byte-identical to the written one (689,787 B); dossier text 37,346 B
+  of the 65,536 cap, nothing cut; no http(s) in the dashboard files.
+  `vendor/makefun-board.ts` and `.makefun/owner.json` untouched.
 - grade-local BLOCKER: `node cli/makefun.mjs grade-local --kit . --bot
   <repo> --driver process` refuses program/v1 — "its scorer and reference
   data are not published in the kit, so the house grades it". The sealed

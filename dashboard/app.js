@@ -1,4 +1,4 @@
-// Token Radar, radar-2 dashboard. It reads window.RADAR (written beside dashboard/
+// Token Radar, radar-3 dashboard. It reads window.RADAR (written beside dashboard/
 // by main.ts) and renders the ranked board, a filterable table, a per-protocol detail
 // drawer with the model's own inputs and the protocol's farm plan. No network: every
 // byte it shows is in data.js.
@@ -32,12 +32,16 @@
   // The model in one function: the page recomputes a row from the snapshot figures and
   // checks the number board.json carries, so the page's code and the board's data are
   // visibly the same arithmetic. Comps come from the snapshot's live protocols.
+  // Chain breadth is the fourth factor: each chain past the first adds the model's
+  // chain step, up to its cap, so a protocol on ten chains or more tops out at 1.18x.
   function impliedOf(row, model) {
     var growth = Math.min(model.growth_cap, Math.max(model.growth_floor, row.change_7d === null || row.change_7d === undefined ? 0 : row.change_7d));
     var growthMult = 1 + (growth / 100) * model.growth_weight;
     var age = row.age_days === null || row.age_days === undefined ? model.unknown_age_days : row.age_days;
     var maturity = model.maturity_floor + (Math.min(Math.max(age, 0), model.maturity_days) / model.maturity_days) * model.maturity_range;
-    return Math.max(1, Math.round(row.tvl_usd * row.comp_multiple * growthMult * maturity));
+    var chains = row.chain_count !== null && row.chain_count !== undefined ? row.chain_count : (row.chains ? row.chains.length : 0);
+    var chainMult = 1 + Math.min(Math.max(chains - 1, 0), model.chain_extra_max) * model.chain_step;
+    return Math.max(1, Math.round(row.tvl_usd * row.comp_multiple * growthMult * maturity * chainMult));
   }
 
   function el(tag, attrs) {
@@ -343,9 +347,9 @@
       el('h2', { text: 'How implied value is computed' }),
       el('p', { class: 'sub', text: 'Every row is scored by one function of the snapshot figures. No protocol name is special-cased, and no row is hand-picked. Re-run on a newer snapshot and the board re-ranks from the new figures: that is how the radar finds a launch early.' }),
       el('div', { class: 'formula' },
-        'implied = round( tvl_usd x comp(' + 'category' + ') x (1 + clamp(change_7d, ' + m.growth_floor + ', ' + m.growth_cap + ') / 100 x ' + m.growth_weight + ') x (' + m.maturity_floor + ' + min(age_days, ' + m.maturity_days + ') / ' + m.maturity_days + ' x ' + m.maturity_range + ') )'
+        'implied = round( tvl_usd x comp(' + 'category' + ') x (1 + clamp(change_7d, ' + m.growth_floor + ', ' + m.growth_cap + ') / 100 x ' + m.growth_weight + ') x (' + m.maturity_floor + ' + min(age_days, ' + m.maturity_days + ') / ' + m.maturity_days + ' x ' + m.maturity_range + ') x (1 + min(chains - 1, ' + m.chain_extra_max + ') x ' + m.chain_step + ') )'
       ),
-      el('p', { class: 'sub', text: 'comp(category) is the category multiple below: the median market-cap-per-TVL of the live-token protocols in that category, shrunk toward the global median of ' + fmtMult(DATA.global_multiple) + ' with a prior weight of ' + m.comp_prior + ' live protocols, then clamped to ' + fmtMult(m.comp_min) + '–' + fmtMult(m.comp_max) + '. TVL and seven-day growth come from the snapshot. Age is the time since the protocol was first listed, the best record of how long it has run with no token; an unlisted age uses ' + m.unknown_age_days + ' days.' }),
+      el('p', { class: 'sub', text: 'comp(category) is the category multiple below: the median market-cap-per-TVL of the live-token protocols in that category, shrunk toward the global median of ' + fmtMult(DATA.global_multiple) + ' with a prior weight of ' + m.comp_prior + ' live protocols, then clamped to ' + fmtMult(m.comp_min) + '–' + fmtMult(m.comp_max) + '. TVL and seven-day growth come from the snapshot. Age is the time since the protocol was first listed, the best record of how long it has run with no token; an unlisted age uses ' + m.unknown_age_days + ' days. Chain breadth is the fourth factor: a protocol live on more chains reaches more wallets and more surface to farm, so each chain past the first adds ' + m.chain_step + ' to its multiplier, up to ' + m.chain_extra_max + ' extra chains — a single-chain protocol scores 1.00x and one on ten chains or more scores 1.18x, so breadth is a tie-breaker, never the story.' }),
       el('table', { class: 'comps' },
         el('caption', { class: 'sub', text: 'Category comps, from the snapshot\u2019s live-token protocols. Categories with no live protocol take the global median.' }),
         el('thead', null, el('tr', null,
@@ -386,8 +390,10 @@
         el('div', null, el('span', { text: 'Comp multiple (' + (row.category || 'Other') + ')' }), el('b', { class: 'num', text: fmtMult(row.comp_multiple) })),
         el('div', null, el('span', { text: 'Seven-day growth' }), el('b', { class: 'num', text: fmtPct(row.change_7d) })),
         el('div', null, el('span', { text: 'Age with no token' }), el('b', { class: 'num', text: fmtAge(row.age_days) })),
+        el('div', null, el('span', { text: 'Chain breadth (' + row.chain_count + (row.chain_count === 1 ? ' chain' : ' chains') + ')' }), el('b', { class: 'num', text: (row.chains && row.chains.length ? row.chains.join(', ') : 'an unnamed chain') })),
         el('div', null, el('span', { text: 'Growth multiplier' }), el('b', { class: 'num', text: String(row.growth_multiplier) })),
         el('div', null, el('span', { text: 'Maturity multiplier' }), el('b', { class: 'num', text: String(row.maturity_multiplier) })),
+        el('div', null, el('span', { text: 'Chain multiplier' }), el('b', { class: 'num', text: String(row.chain_multiplier) })),
         el('div', null, el('span', { text: 'Implied value' }), el('b', { class: 'num', text: fmtUsd(row.implied_value_usd) }))
       ),
       el('p', { class: 'sub', text: 'Model ' + DATA.model_version + ': ' + (comp ? 'its category has ' + comp.live_count + ' live protocol' + (comp.live_count === 1 ? '' : 's') + ' behind the multiple, median ' + (comp.median_multiple === null ? 'n/a' : fmtMult(comp.median_multiple)) + ', shrunk to ' + fmtMult(row.comp_multiple) + '. ' : 'its category has no live protocol, so it takes the global median ' + fmtMult(DATA.global_multiple) + '. ') + 'The page recomputes this row as ' + fmtUsd(recomputed) + (recomputed === row.implied_value_usd ? ', the same number board.json carries.' : ', which differs from the board: the data would be stale.') + ' This is an estimate, not a price.' })

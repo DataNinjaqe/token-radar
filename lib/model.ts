@@ -9,7 +9,7 @@
 // staked or bridged product of a token that already trades is not ranked either:
 // WBTC is Bitcoin on Ethereum, not a protocol waiting on a launch of its own.
 //
-// Implied value is derived from the snapshot's own figures only, in three parts:
+// Implied value is derived from the snapshot's own figures only, in four parts:
 //
 //   1. Comps. The snapshot's live-token protocols are the market's own evidence for
 //      what a token is worth per dollar of TVL. For each category we take the median
@@ -27,7 +27,17 @@
 //      issuing one, the more pent-up the launch. maturity = 0.55 +
 //      min(age_days, 1460) / 1460 x 0.45. An unlisted age counts as 365 days.
 //
-//   implied = max(1, round(base x growth_mult x maturity))
+//   4. Chain breadth. The snapshot's `chains` list is a figure the first three
+//      parts never read, and it is real evidence: a protocol live on more chains
+//      reaches more wallets, more integrations and more surface to farm, so its
+//      launch has more to price. Each chain past the first adds 0.02, up to nine
+//      extra chains: chain_mult = 1 + min(chains - 1, 9) x 0.02, so a single-chain
+//      protocol scores 1.00 and one on ten chains or more scores 1.18. The cap
+//      keeps breadth a tie-breaker, never the story: the widest protocol in this
+//      snapshot lists 45 chains, and without the cap it would outrank on
+//      distribution alone.
+//
+//   implied = max(1, round(base x growth_mult x maturity x chain_mult))
 //
 // No protocol name is ever special-cased: the same function scores every row, and
 // re-running on a newer snapshot re-ranks from the new figures, so the radar finds
@@ -69,6 +79,10 @@ export interface ModelConstants {
   maturity_range: number;
   maturity_days: number;
   unknown_age_days: number;
+  /** Uplift per chain past the first, in chain breadth. */
+  chain_step: number;
+  /** How many extra chains past the first the breadth uplift counts. */
+  chain_extra_max: number;
 }
 
 export const MODEL: ModelConstants = {
@@ -82,10 +96,12 @@ export const MODEL: ModelConstants = {
   maturity_range: 0.45,
   maturity_days: 1460,
   unknown_age_days: 365,
+  chain_step: 0.02,
+  chain_extra_max: 9,
 };
 
 /** The model's version label: the dashboard names it. */
-export const MODEL_VERSION = 'radar-2';
+export const MODEL_VERSION = 'radar-3';
 
 /** How many live-token protocols the dashboard's Live token view carries, by market cap. */
 export const LIVE_ROWS = 24;
@@ -127,6 +143,8 @@ export interface BoardRow {
     growth_pct: number;
     growth_multiplier: number;
     maturity_multiplier: number;
+    chain_multiplier: number;
+    chain_count: number;
     age_days: number | null;
   };
   farm_steps: string[];
@@ -148,6 +166,8 @@ export interface RadarRow {
   comp_multiple: number;
   growth_multiplier: number;
   maturity_multiplier: number;
+  chain_multiplier: number;
+  chain_count: number;
 }
 
 /** A live-token protocol: it already trades, so the board shows the market's own value. */
@@ -245,13 +265,26 @@ export function categoryComps(snapshot: Snapshot, model: ModelConstants = MODEL)
   return { comps, global };
 }
 
-/** The three multipliers and the implied value one protocol gets under `model`. */
+/**
+ * Chain breadth: how much a protocol's chain count lifts its implied value.
+ * One chain scores 1.00; each chain past the first adds `model.chain_step`,
+ * up to `model.chain_extra_max` extra chains, so the widest protocols top out
+ * at 1 + 9 x 0.02 = 1.18. The cap is the point: breadth is distribution, not
+ * size, and a protocol on 45 chains must not outrank a bigger one on breadth
+ * alone. A missing or empty chain list counts as one chain.
+ */
+export function chainMultiplier(chainCount: number, model: ModelConstants = MODEL): number {
+  const extra = Math.min(Math.max(Math.floor(chainCount) - 1, 0), model.chain_extra_max);
+  return 1 + extra * model.chain_step;
+}
+
+/** The four multipliers and the implied value one protocol gets under `model`. */
 export function impliedValue(
   protocol: SnapshotProtocol,
   asOf: string,
   multiple: number,
   model: ModelConstants,
-): { implied: number; growthPct: number; growthMult: number; maturityMult: number; age: number | null } {
+): { implied: number; growthPct: number; growthMult: number; maturityMult: number; chainMult: number; chainCount: number; age: number | null } {
   const age = ageDays(asOf, protocol.listed_at);
   const rawGrowth = finite(protocol.change_7d, 0);
   const growthPct = Math.min(model.growth_cap, Math.max(model.growth_floor, rawGrowth));
@@ -259,9 +292,11 @@ export function impliedValue(
   const ageForModel = age ?? model.unknown_age_days;
   const maturityMult =
     model.maturity_floor + (Math.min(Math.max(ageForModel, 0), model.maturity_days) / model.maturity_days) * model.maturity_range;
+  const chainCount = Array.isArray(protocol.chains) ? protocol.chains.length : 0;
+  const chainMult = chainMultiplier(chainCount, model);
   const base = protocol.tvl_usd * multiple;
-  const implied = Math.max(1, Math.round(base * growthMult * maturityMult));
-  return { implied, growthPct, growthMult, maturityMult, age };
+  const implied = Math.max(1, Math.round(base * growthMult * maturityMult * chainMult));
+  return { implied, growthPct, growthMult, maturityMult, chainMult, chainCount, age };
 }
 
 /** DefiLlama's version-marker rule: a name ending in a release is a pool of another protocol. */
@@ -320,8 +355,8 @@ export function buildBoard(snapshot: Snapshot, model: ModelConstants = MODEL): B
 
   const scored = [...chosen.values()].map((p) => {
     const multiple = multipleOf.get(p.category ?? 'Other') ?? 0.25;
-    const { implied, growthPct, growthMult, maturityMult, age } = impliedValue(p, snapshot.as_of, multiple, model);
-    return { p, implied, growthPct, growthMult, maturityMult, age, multiple };
+    const { implied, growthPct, growthMult, maturityMult, chainMult, chainCount, age } = impliedValue(p, snapshot.as_of, multiple, model);
+    return { p, implied, growthPct, growthMult, maturityMult, chainMult, chainCount, age, multiple };
   });
   scored.sort((a, b) => b.implied - a.implied || (a.p.slug < b.p.slug ? -1 : a.p.slug > b.p.slug ? 1 : 0));
   return scored.map((s, i) => ({
@@ -347,6 +382,8 @@ export function buildBoard(snapshot: Snapshot, model: ModelConstants = MODEL): B
       growth_pct: round4(s.growthPct),
       growth_multiplier: round4(s.growthMult),
       maturity_multiplier: round4(s.maturityMult),
+      chain_multiplier: round4(s.chainMult),
+      chain_count: s.chainCount,
       age_days: s.age,
     },
     farm_steps: farmSteps(s.p, s.age).map(stepText),
@@ -498,6 +535,8 @@ export function radarRow(row: BoardRow): RadarRow {
     comp_multiple: row.model.comp_multiple,
     growth_multiplier: row.model.growth_multiplier,
     maturity_multiplier: row.model.maturity_multiplier,
+    chain_multiplier: row.model.chain_multiplier,
+    chain_count: row.model.chain_count,
   };
 }
 
