@@ -83,3 +83,54 @@
   the seven gate rows). There is no local judge score to iterate against;
   only the server's dev grade can score it. `--stress` is pump-replay-only
   and is refused for this competition.
+
+## 2026-11-21 — session 3: radar-4, fitted blend model + validation + costed farm plans
+
+- Goal: the radar-3 entry scored 10840/14785 (judge value 728896, interval
+  676307–781486), far below the ~40th-place screening line, so this iteration
+  needed a large jump, not a cosmetic tweak. Top entries' titles show what
+  wins: fitted value terms tested held-out, token odds from peers' record,
+  costed farm verdicts, KPI/integrity strips, all protocols accounted for.
+- Model (lib/model.ts, fitValueModel): the base is now the geometric mean of
+  two terms fitted at run time from the snapshot's 119 live-token protocols
+  (mcap > 0, TVL > 0, not a CEX) — category comps (median mcap/TVL, shrunk,
+  clamped 0.02–2.5x) and a log-log OLS regression
+  log10(mcap) = 3.3823 + 0.4721 x log10(TVL) plus shrunk per-category offsets.
+  Validation, recomputed on every run: random 1-in-5 by slug x2.45, second
+  random split x5.37, walk-forward by listing date x3.45; blend R2 0.2771 vs
+  comps alone 0.1662; the blend beats or ties each term alone on all three
+  splits. The dashboard states the misses (R2, median errors) next to the
+  numbers instead of hiding them.
+- Token odds (tokenOdds): per-category share of protocols recording a token
+  (gecko id, symbol or mcap), shrunk toward the global 0.549 with prior 8;
+  odds multiplier 0.75 + 0.5 x odds. Farm verdicts from a stated rule:
+  Farm now 5 (implied >= $50M and odds >= 0.35), Watch 85, Low priority 108.
+  Every farm plan now carries its total planned spend ($56–$222: deposit
+  $50–$250 plus gas over the hold) in the board, the table and step 6.
+- Accounting: the dashboard now accounts for all 758 protocols in exactly one
+  bucket — 198 ranked, 144 excluded pre-token (named by reason), 144
+  live-token (the Live tab now shows all 144, not the top 24), 272
+  token-recorded with no market cap. Board stays 198 rows: that is every
+  rankable pre-token protocol in the snapshot; the expansion is in accounting,
+  not in padding the board with wrapped/bridged products.
+- Dashboard: KPI strip (watchlist 40/40, 198 rows, 758/758 accounted, 119
+  live in fit, R2 0.2771, held-out x2.45 random / x3.45 walk-forward),
+  method strip with the blend formula and a validation table, accounting
+  panel, Farm column (verdict + cost) in the board table, detail drawer with
+  both fitted bases, token odds, odds multiplier, farm cost and verdict.
+  Fixed a detail-drawer overflow: the chain list pushed the equation values
+  off-screen; the row now shows the chain count and the CSS clamps values.
+- Verification: 198 rows, 40/40 watchlist, ranks 1–198, non-increasing, 198
+  distinct implied values, farm steps all 20–600 chars; page recompute matches
+  board.json on all 198 rows (0 mismatches, checked in node and in-browser:
+  the detail view prints "the same number board.json carries"); two runs
+  byte-identical; dossier rebuilt byte-identical, text 45,942/65,536 bytes,
+  nothing cut; no http(s) in any dashboard file. Screenshots re-taken with
+  the Playwright Chromium (local file URLs; /opt/meta-chromium refuses
+  without a WebGL policy file): board 180,559 B, detail 210,318 B, filtered
+  Risk Curators 179,003 B, all 1440x900 PNGs inside the 512 KiB cap.
+- README: the three live make.fun badges from the requirements endpoint's
+  readme_template (owner/repo filled in, referral ref zczcxv34) plus the
+  bounty link and footer; repo About set via gh (description + homepage
+  https://make.fun/bounty/token-radar-01 + topics makefun, ai-agents,
+  bounties, trading).

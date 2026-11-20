@@ -1,4 +1,4 @@
-/* Token Radar, radar-2 theme. One dark palette, two radii, two families: everything
+/* Token Radar, radar-4 theme. One dark palette, two radii, two families: everything
    else is spacing, a hairline and a type step. The gold is the radar's sweep. */
 :root {
   --canvas: #0c1118;
@@ -115,6 +115,15 @@ tbody tr[data-selected="true"] { background: rgba(240, 180, 41, 0.08); }
 .status { display: inline-flex; align-items: center; gap: 6px; color: var(--muted); font-size: 12px; white-space: nowrap; }
 .status::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: var(--accent); }
 .status.live::before { background: var(--positive); }
+.farm { display: grid; gap: 2px; }
+.verdict { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 12px; font-weight: 600; white-space: nowrap; width: max-content; }
+.verdict.farm { background: rgba(63, 185, 127, 0.18); color: var(--positive); }
+.verdict.watch { background: rgba(240, 180, 41, 0.16); color: var(--accent); }
+.verdict.low { background: rgba(139, 152, 173, 0.16); color: var(--muted); }
+.accounting { margin-top: var(--step-4); padding: var(--step-5); display: grid; gap: var(--step-3); }
+.accounting .facts { border-left: 0; padding-left: 0; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--step-4); }
+.accounting .fact { display: grid; gap: 2px; }
+.accounting .fact b { font-size: 20px; }
 
 .model { margin-top: var(--step-4); padding: var(--step-5); display: grid; gap: var(--step-3); }
 .formula { font-family: var(--font-num); font-size: 13px; line-height: 1.7; color: var(--muted); overflow-wrap: anywhere; }
@@ -144,8 +153,9 @@ tbody tr[data-selected="true"] { background: rgba(240, 180, 41, 0.08); }
 .detail-section { margin-top: var(--step-5); padding-top: var(--step-4); border-top: 1px solid var(--border); }
 .detail-section h3 { margin-bottom: var(--step-2); }
 .equation { display: grid; gap: var(--step-2); font-family: var(--font-num); font-size: 13px; }
-.equation div { display: flex; justify-content: space-between; gap: var(--step-3); }
+.equation div { display: flex; justify-content: space-between; gap: var(--step-3); min-width: 0; }
 .equation span { color: var(--muted); }
+.equation b { text-align: right; overflow-wrap: anywhere; flex: none; max-width: 60%; }
 .steps { margin: 0; padding-left: var(--step-5); display: grid; gap: var(--step-3); }
 .steps li { padding-left: var(--step-1); }
 .steps b { display: block; font-weight: 500; }

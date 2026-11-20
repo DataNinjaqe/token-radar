@@ -1,11 +1,13 @@
-// Token Radar, radar-3 entry (Node 22, standard library only).
+// Token Radar, radar-4 entry (Node 22, standard library only).
 //
 // main.ts reads the sealed snapshot at /input/snapshot.json (or --input <file|dir>),
 // scores every rankable pre-token protocol with the model in lib/model.ts, writes the
 // ranked board to /output/board.json, writes the dashboard's data beside the page as
 // data.js, copies this repository's dashboard/ and screenshots/ to /output, and writes
 // /output/dossier.json with the vendored make.fun library. The run is deterministic:
-// the same snapshot bytes always write the same output bytes.
+// the same snapshot bytes always write the same output bytes. The value model is
+// fitted at run time from the snapshot's live-token protocols (see lib/model.ts:
+// fitValueModel) and validated on three held-out splits before it is trusted.
 //
 // Outside the grader's container, MAKEFUN_OUTPUT_DIR stands in for /output:
 //   mkdir -p out && MAKEFUN_OUTPUT_DIR=out node main.ts --input ../input/snapshot.json
@@ -84,5 +86,7 @@ writeFileSync(join(out, 'dossier.json'), buildDossier(out, { text_max_bytes: TEX
 
 process.stdout.write(
   `token radar: ${snapshot.protocols.length} protocols, ${snapshot.watchlist.length} on the watchlist, ${board.length} rows scored (${radar.early_size} early, ${radar.live_size} live set aside)\n` +
+    `token radar: fit on ${radar.fit.fit_n} live protocols: log10(mcap) = ${radar.fit.intercept} + ${radar.fit.slope} x log10(TVL), R2 blend ${radar.fit.r2_blend} (comps alone ${radar.fit.r2_m1}); held-out median error x${radar.fit.holdout_random.med_factor} (random), x${radar.fit.holdout_walkforward.med_factor} (walk-forward)\n` +
+    `token radar: ${radar.accounting.total} protocols accounted for: ${radar.accounting.ranked} ranked, ${radar.accounting.excluded_pre_token} excluded pre-token, ${radar.accounting.live_token} live-token, ${radar.accounting.token_record_no_mcap} token-recorded with no market cap\n` +
     `token radar: wrote ${join(out, 'board.json')}, ${join(out, 'data.js')}, ${join(out, 'dashboard')} (${dash.length} files), ${join(out, 'screenshots')} (${shots.length} images) and ${join(out, 'dossier.json')}\n`,
 );
